@@ -140,7 +140,15 @@ func (cli *Client) sendIQAsyncAndGetData(ctx context.Context, query *infoQuery) 
 	}
 
 	// 🔒 FIX: Log antes de enviar (INFO para garantir que apareça)
-	cli.Log.Infof("sendIQAsyncAndGetData: sending IQ, id=%s, namespace=%s, to=%s, target=%s", query.ID, query.Namespace, attrs["to"], attrs["target"])
+	targetStr := "none"
+	if !query.Target.IsEmpty() {
+		targetStr = query.Target.String()
+	}
+	toStr := "none"
+	if !query.To.IsEmpty() {
+		toStr = query.To.String()
+	}
+	cli.Log.Infof("sendIQAsyncAndGetData: sending IQ, id=%s, namespace=%s, to=%s, target=%s", query.ID, query.Namespace, toStr, targetStr)
 
 	data, err := cli.sendNodeAndGetData(ctx, waBinary.Node{
 		Tag:     "iq",

@@ -19,9 +19,9 @@ var (
 	// KeepAliveResponseDeadline specifies the duration to wait for a response to websocket keepalive pings.
 	KeepAliveResponseDeadline = 10 * time.Second
 	// KeepAliveIntervalMin specifies the minimum interval for websocket keepalive pings.
-	KeepAliveIntervalMin = 20 * time.Second
+	KeepAliveIntervalMin = 45 * time.Second
 	// KeepAliveIntervalMax specifies the maximum interval for websocket keepalive pings.
-	KeepAliveIntervalMax = 30 * time.Second
+	KeepAliveIntervalMax = 90 * time.Second
 
 	// KeepAliveMaxFailTime specifies the maximum time to wait before forcing a reconnect if keepalives fail repeatedly.
 	KeepAliveMaxFailTime = 3 * time.Minute
