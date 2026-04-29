@@ -66,6 +66,12 @@ type SendDataStruct struct {
 	FormatJid    *bool
 	Quoted       QuotedStruct
 	MediaHandle  string
+	Options      OptionsStruct
+}
+
+type OptionsStruct struct {
+	Delay    int32  `json:"delay"`
+	Presence string `json:"presence"`
 }
 
 type QuotedStruct struct {
@@ -74,14 +80,16 @@ type QuotedStruct struct {
 }
 
 type TextStruct struct {
-	Number       string       `json:"number"`
-	Text         string       `json:"text"`
-	Id           string       `json:"id"`
-	Delay        int32        `json:"delay"`
-	MentionedJID []string     `json:"mentionedJid"`
-	MentionAll   bool         `json:"mentionAll"`
-	FormatJid    *bool        `json:"formatJid,omitempty"`
-	Quoted       QuotedStruct `json:"quoted"`
+	Number       string        `json:"number"`
+	Text         string        `json:"text"`
+	Instance     string        `json:"instance,omitempty"`
+	Id           string        `json:"id"`
+	Delay        int32         `json:"delay"`
+	MentionedJID []string      `json:"mentionedJid"`
+	MentionAll   bool          `json:"mentionAll"`
+	FormatJid    *bool         `json:"formatJid,omitempty"`
+	Quoted       QuotedStruct  `json:"quoted"`
+	Options      OptionsStruct `json:"options"`
 }
 
 type LinkStruct struct {
@@ -100,17 +108,19 @@ type LinkStruct struct {
 }
 
 type MediaStruct struct {
-	Number       string       `json:"number"`
-	Url          string       `json:"url"`
-	Type         string       `json:"type"`
-	Caption      string       `json:"caption"`
-	Filename     string       `json:"filename"`
-	Id           string       `json:"id"`
-	Delay        int32        `json:"delay"`
-	MentionedJID []string     `json:"mentionedJid"`
-	MentionAll   bool         `json:"mentionAll"`
-	FormatJid    *bool        `json:"formatJid,omitempty"`
-	Quoted       QuotedStruct `json:"quoted"`
+	Number       string        `json:"number"`
+	Instance     string        `json:"instance,omitempty"`
+	Url          string        `json:"url"`
+	Type         string        `json:"type"`
+	Caption      string        `json:"caption"`
+	Filename     string        `json:"filename"`
+	Id           string        `json:"id"`
+	Delay        int32         `json:"delay"`
+	MentionedJID []string      `json:"mentionedJid"`
+	MentionAll   bool          `json:"mentionAll"`
+	FormatJid    *bool         `json:"formatJid,omitempty"`
+	Quoted       QuotedStruct  `json:"quoted"`
+	Options      OptionsStruct `json:"options"`
 }
 
 type PollStruct struct {
@@ -510,15 +520,23 @@ func (s *sendService) sendTextWithRetry(data *TextStruct, instance *instance_mod
 			},
 		}
 
+		// Merge Delay from Options if not set in root
+		delay := data.Delay
+		if delay == 0 && data.Options.Delay > 0 {
+			delay = data.Options.Delay
+		}
+
 		message, err := s.SendMessage(instance, msg, "ExtendedTextMessage", &SendDataStruct{
 			Id:           data.Id,
 			Number:       data.Number,
 			Quoted:       data.Quoted,
-			Delay:        data.Delay,
+			Delay:        delay,
 			MentionAll:   data.MentionAll,
 			MentionedJID: data.MentionedJID,
 			FormatJid:    data.FormatJid,
+			Options:      data.Options,
 		})
+
 
 		if err != nil {
 			// Check if it's a client disconnection error
@@ -1057,14 +1075,21 @@ func (s *sendService) sendMediaFileWithRetry(data *MediaStruct, fileData []byte,
 			return nil, errors.New("invalid media type")
 		}
 
+		// Merge Delay from Options if not set in root
+		delay := data.Delay
+		if delay == 0 && data.Options.Delay > 0 {
+			delay = data.Options.Delay
+		}
+
 		message, err := s.SendMessage(instance, media, mediaType, &SendDataStruct{
 			Id:           data.Id,
 			Number:       data.Number,
 			Quoted:       data.Quoted,
-			Delay:        data.Delay,
+			Delay:        delay,
 			MentionAll:   data.MentionAll,
 			MentionedJID: data.MentionedJID,
 			FormatJid:    data.FormatJid,
+			Options:      data.Options,
 			MediaHandle:  uploaded.Handle,
 		})
 
@@ -1939,7 +1964,12 @@ func (s *sendService) SendMessage(instance *instance_model.Instance, msg *waE2E.
 			media = "audio"
 		}
 
-		err := s.clientPointer[instance.Id].SendChatPresence(context.Background(), recipient, types.ChatPresence("composing"), types.ChatPresenceMedia(media))
+		presence := types.ChatPresence("composing")
+		if data.Options.Presence != "" {
+			presence = types.ChatPresence(data.Options.Presence)
+		}
+
+		err := s.clientPointer[instance.Id].SendChatPresence(context.Background(), recipient, presence, types.ChatPresenceMedia(media))
 		if err != nil {
 			return nil, err
 		}

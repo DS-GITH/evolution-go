@@ -97,14 +97,25 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.POST("/connect", r.instanceHandler.Connect)
+			routes.POST("/connect/:instanceId", r.instanceHandler.Connect)
 			routes.GET("/status", r.instanceHandler.Status)
+			routes.GET("/status/:instanceId", r.instanceHandler.Status)
+			routes.GET("/connectionState/:instanceId", r.instanceHandler.Status)
 			routes.GET("/qr", r.instanceHandler.Qr)
 			routes.POST("/pair", r.jidValidationMiddleware.ValidateNumberField(), r.instanceHandler.Pair)
 			routes.POST("/disconnect", r.instanceHandler.Disconnect)
 			routes.POST("/reconnect", r.instanceHandler.Reconnect)
 			routes.DELETE("/logout", r.instanceHandler.Logout)
+			routes.DELETE("/logout/:instanceId", r.instanceHandler.Logout)
 			routes.GET("/:instanceId/advanced-settings", r.instanceHandler.GetAdvancedSettings)
 			routes.PUT("/:instanceId/advanced-settings", r.instanceHandler.UpdateAdvancedSettings)
+
+			// Compatibility with Evolution API (NodeJS) /instance/{instance}/message/sendText
+			instanceMsgGroup := routes.Group("/:instanceId/message")
+			{
+				instanceMsgGroup.POST("/sendText", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendText)
+				instanceMsgGroup.POST("/sendMedia", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendMedia)
+			}
 		}
 	}
 
@@ -148,6 +159,12 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 	{
 		routes.Use(r.authMiddleware.Auth)
 		{
+			// Compatibility with Evolution API (NodeJS) and README
+			routes.POST("/sendText", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendText)
+			routes.POST("/sendText/:instanceId", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendText)
+			routes.POST("/sendMedia", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendMedia)
+			routes.POST("/sendMedia/:instanceId", r.jidValidationMiddleware.ValidateNumberFieldWithFormatJid(), r.sendHandler.SendMedia)
+
 			routes.POST("/react", r.jidValidationMiddleware.ValidateJIDFields("number"), r.messageHandler.React)
 			routes.POST("/presence", r.jidValidationMiddleware.ValidateNumberField(), r.messageHandler.ChatPresence)
 			routes.POST("/markread", r.jidValidationMiddleware.ValidateNumberField(), r.messageHandler.MarkRead)
@@ -240,6 +257,15 @@ func (r *Routes) AssignRoutes(eng *gin.Engine) {
 		routes.Use(r.authMiddleware.Auth)
 		{
 			routes.GET("/:pollMessageId/results", r.pollHandler.GetPollResults)
+		}
+	}
+
+	// NOVO: Rotas de Webhook (Compatibilidade NodeJS)
+	routes = eng.Group("/webhook")
+	{
+		routes.Use(r.authMiddleware.Auth)
+		{
+			routes.POST("/set/:instanceId", r.instanceHandler.SetWebhook)
 		}
 	}
 

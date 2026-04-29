@@ -44,6 +44,7 @@ type InstanceService interface {
 	GetLogs(instanceId string, startDate, endDate time.Time, level string, limit int) ([]logger_wrapper.LogEntry, error)
 	GetAdvancedSettings(instanceId string) (*instance_model.AdvancedSettings, error)
 	UpdateAdvancedSettings(instanceId string, settings *instance_model.AdvancedSettings) error
+	SetWebhook(instanceId string, data *SetWebhookStruct) error
 }
 
 type instances struct {
@@ -79,6 +80,10 @@ type ConnectStruct struct {
 	RabbitmqEnable  string   `json:"rabbitmqEnable"`
 	WebSocketEnable string   `json:"websocketEnable"`
 	NatsEnable      string   `json:"natsEnable"`
+}
+
+type SetWebhookStruct struct {
+	Url string `json:"url"`
 }
 
 type StatusStruct struct {
@@ -842,6 +847,29 @@ func (i instances) UpdateAdvancedSettings(instanceId string, settings *instance_
 	}
 
 	i.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Advanced settings updated successfully", instanceId)
+	return nil
+}
+
+func (i instances) SetWebhook(instanceId string, data *SetWebhookStruct) error {
+	i.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] Updating webhook URL to: %s", instanceId, data.Url)
+
+	instance, err := i.instanceRepository.GetInstanceByID(instanceId)
+	if err != nil {
+		return err
+	}
+
+	instance.Webhook = data.Url
+	err = i.instanceRepository.Update(instance)
+	if err != nil {
+		return err
+	}
+
+	// Sincroniza na instância em execução
+	err = i.whatsmeowService.UpdateInstanceSettings(instanceId)
+	if err != nil {
+		i.loggerWrapper.GetLogger(instanceId).LogWarn("[%s] Error syncing webhook to runtime: %v", instanceId, err)
+	}
+
 	return nil
 }
 
