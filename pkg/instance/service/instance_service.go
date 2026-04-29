@@ -41,6 +41,7 @@ type InstanceService interface {
 	RemoveProxy(id string) error
 	ForceReconnect(instanceId string, number string) error
 	GetInstanceByToken(token string) (*instance_model.Instance, error)
+	GetInstanceByIdOrName(identifier string) (*instance_model.Instance, error)
 	GetLogs(instanceId string, startDate, endDate time.Time, level string, limit int) ([]logger_wrapper.LogEntry, error)
 	GetAdvancedSettings(instanceId string) (*instance_model.AdvancedSettings, error)
 	UpdateAdvancedSettings(instanceId string, settings *instance_model.AdvancedSettings) error
@@ -709,6 +710,14 @@ func (i instances) ForceReconnect(instanceId string, number string) error {
 
 func (i instances) GetInstanceByToken(token string) (*instance_model.Instance, error) {
 	return i.instanceRepository.GetInstanceByToken(token)
+}
+
+func (i instances) GetInstanceByIdOrName(identifier string) (*instance_model.Instance, error) {
+	instance, err := i.instanceRepository.GetInstanceByID(identifier)
+	if err == nil {
+		return instance, nil
+	}
+	return i.instanceRepository.GetInstanceByName(identifier)
 }
 
 func (i instances) GetLogs(instanceId string, startDate, endDate time.Time, level string, limit int) ([]logger_wrapper.LogEntry, error) {

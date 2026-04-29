@@ -1,6 +1,9 @@
 package auth_middleware
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/EvolutionAPI/evolution-go/pkg/config"
@@ -27,8 +30,36 @@ func (m middleware) Auth(ctx *gin.Context) {
 
 	instance, err := m.instanceService.GetInstanceByToken(token)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authorized"})
-		return
+		if token == m.config.GlobalApiKey {
+			instanceId := ctx.Param("instanceId")
+			if instanceId == "" {
+				instanceId = ctx.Query("instance")
+			}
+
+			if instanceId == "" {
+				var body map[string]interface{}
+				bodyBytes, _ := io.ReadAll(ctx.Request.Body)
+				ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+				if len(bodyBytes) > 0 {
+					if err := json.Unmarshal(bodyBytes, &body); err == nil {
+						if inst, ok := body["instance"].(string); ok {
+							instanceId = inst
+						} else if instName, ok := body["instanceName"].(string); ok {
+							instanceId = instName
+						}
+					}
+				}
+			}
+
+			if instanceId != "" {
+				instance, _ = m.instanceService.GetInstanceByIdOrName(instanceId)
+			}
+		}
+
+		if instance == nil {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authorized"})
+			return
+		}
 	}
 
 	ctx.Set("instance", instance)
